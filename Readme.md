@@ -221,12 +221,111 @@ This distinction is key.  *Scoped* services should only be requested from *Scope
 .NetCore applications are designed to build and provide *Scoped* providers in different contexts.  
 
  - In a `HttpRequest` context, the HttpRequest context creates a Scoped Provider which it injects into the HttpRequest based objects such as controllers, minmial API's and Razor.
+
  - In Blazor Server the SPA Hub context creates a scoped Provider the Render uses to inject services into components.
 
 
+## Manual Injection
 
+While injecting via the constructor is the most common way of injecting services, it's not the only way.
 
+`IServiceProvider` has a set of methods to resolve services manually from the container.
 
+The two most convenient are:
 
-## Service Scopes
+```csharp
+TService service = IServiceProvider.GetRequiredService<TService>();
+```
 
+And: 
+
+```csharp
+TService? service = IServiceProvider.GetService<TService>();
+```
+
+The important difference is `GetRequiredService` throws an exception if the service doesn't exist, while `GetService` returns a `null`.
+
+There are use cases where a service is optional.  You use a notification service if one is registered, but it's not critical to the application.
+
+It is argued that using manual injection is a *Service Locator Pattern* and thus an *anti-pattern* to be avoided.
+
+The principle arguments are that:
+1. It hides the service dependancies.
+2. It moves exceptions from compile-time to run-time.
+3. It makes testing more difficult.
+
+All true, but they can be applied to many pieces of code.  They're not show stoppers.  
+
+Consider this service:
+
+```csharp
+public class BadService 
+{
+    private readonly IServiceProvider _serviceProvider;
+
+    public BadService(IServiceProvider serviceProvider)
+        => _serviceProvider = serviceProvider;     
+
+    public void DoSomething()
+    {
+        var service = _serviceProvider.GetRequiredService<DisposableScopedService>();
+        // Do something with service
+    }
+}
+```
+
+This highlights the *Service Locator* problem.  The service acquisition is now buried down in the code.  The exception is only raised when the method is called.  This is **BAD PRACTICE**.
+
+On the other hand, consider this service:
+
+```csharp
+public class GoodService
+{
+    private readonly IServiceProvider _serviceProvider;
+    private readonly DisposableScopedService? _scopedService;
+
+    public GoodService(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+        _scopedService = _serviceProvider.GetService<DisposableScopedService>();
+
+        if (_scopedService is not null)
+        {
+            // Do some service registration
+        }
+    }
+
+    public void DoSomething()
+    {
+        if (_scopedService is not null)
+        {
+            // Do something with service
+        }
+    }
+}
+```
+
+The service acquisition occurs in the constructor.  There's nothing wrong with this pattern.
+
+### Blazor Component Injection
+
+Consider a Blazor component.  Services are injected using the [Inject] attribute like this:
+
+```csharp
+@inject WeatherForecastService Service
+```
+
+They are not declared in the constructor.
+
+```csharp
+public Weather() :base()
+{
+    // can't use WeatherForecastService here   
+}
+```
+
+So how?
+
+The Blazor Hub Sesssion [whether running on the Server or the Web Browser] has a Session scoped IServiceProvider.  Once a component has been initialized [and as pasrt of the *attach* process], the Renderer locates all the `Inject` attribute properties in the component, and sets those properties to the appropriate service from the Hub service container.
+
+It's a classic implementation of the *Service Locator Pattern*

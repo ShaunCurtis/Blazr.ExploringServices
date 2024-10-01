@@ -1,4 +1,5 @@
 ﻿@page "/weather"
+@inject WeatherForecastService Service
 
 <PageTitle>Weather</PageTitle>
 
@@ -36,6 +37,12 @@ else
 }
 
 @code {
+
+    public Weather() :base()
+    {
+        // can't use WeatherForecastService here   
+    }
+
     private WeatherForecast[]? forecasts;
 
     protected override async Task OnInitializedAsync()

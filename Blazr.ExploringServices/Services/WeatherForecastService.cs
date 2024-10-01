@@ -8,11 +8,12 @@ public class WeatherForecastService : IDisposable
         "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
     };
 
-    public async Task<IEnumerable<WeatherForecast>> GetForecastAsync(DateOnly startDate)
+    public async Task<IEnumerable<WeatherForecast>> GetForecastAsync()
     {
         // Fake async behaviour
         await Task.Yield();
 
+        DateOnly startDate = DateOnly.FromDateTime(DateTime.Now);
         if (_weatherForecasts is null)
             _weatherForecasts = Enumerable.Range(1, 50).Select(index => new WeatherForecast
             {
