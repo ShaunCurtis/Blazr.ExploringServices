@@ -22,7 +22,9 @@ Within `Program` you can get the provider like this:
 IServiceProvider serviceProvider = app.Services;
 ```
 
-But there's no provided mechanism to access this `IServiceProvider` from normal code. The temptation is to do something like this:
+But there's no provided mechanism to access this `IServiceProvider` from normal code.
+
+*DON'T* be tempted to do something like this:
 
 
 ```csharp
@@ -53,7 +55,7 @@ public record ServiceProviderUtilities
 }
 ```
 
-**DON'T** [unless you really know what you're doing].  I guarantee you will misuse it and create memory leaks. I'll explain why shortly.
+I guarantee you will misuse it and create memory leaks. I'll explain why shortly.
 
 ## Building a Provider
 
