@@ -326,6 +326,8 @@ public Weather() :base()
 
 So how?
 
-The Blazor Hub Sesssion [whether running on the Server or the Web Browser] has a Session scoped IServiceProvider.  Once a component has been initialized [and as pasrt of the *attach* process], the Renderer locates all the `Inject` attribute properties in the component, and sets those properties to the appropriate service from the Hub service container.
+The Blazor Hub Sesssion [whether running on the Server or the Web Browser] has a Session scoped IServiceProvider.  Once a component has been initialized, the Renderer locates the `Inject` attribute properties in the component, and sets those properties to the appropriate service from the Hub service container.
 
-It's a classic implementation of the *Service Locator Pattern*
+There are two key points to note:
+1. The hub session provides the scoped ServiceProvider and disposes it when the hub session goes out-of-scope.
+2. Injection is an implementation of the *Service Locator Pattern* anti-pattern.

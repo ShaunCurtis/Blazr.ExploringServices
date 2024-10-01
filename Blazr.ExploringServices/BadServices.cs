@@ -40,3 +40,49 @@ public class GoodService
         }
     }
 }
+
+public class MyService
+{
+    private readonly IServiceProvider _serviceProvider;
+
+    public MyService(IServiceProvider serviceProvider)
+        => _serviceProvider = serviceProvider;
+
+    public void DoSomething()
+    {
+        var transient = ActivatorUtilities.CreateInstance<DisposableTransientService>(_serviceProvider);
+
+        if (transient is not null)
+        {
+            // Do something with service
+        }
+        transient?.Dispose();
+    }
+}
+
+public class MyNonService
+{
+    private readonly DisposableScopedService _service;
+    private Guid _id;
+
+    public MyNonService(DisposableScopedService service, Guid id)
+    {
+        _service = service;
+        _id = id;
+    }
+}
+
+public class MyAService
+{
+    private readonly IServiceProvider _serviceProvider;
+
+    public MyAService(IServiceProvider serviceProvider)
+        => _serviceProvider = serviceProvider;
+
+    public void DoSomething(Guid id)
+    {
+        var myObject = ActivatorUtilities.CreateInstance<MyNonService>(_serviceProvider, new[] { id });
+
+        // Do something with myObject
+    }
+}
