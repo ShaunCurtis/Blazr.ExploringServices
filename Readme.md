@@ -2,7 +2,7 @@
 
 Services are an integral part of any .NetCore application.  They provide a convenient way to implement *Inversion of Control* and *Abstraction* good practices.
 
-.NetCore defines the functionality of the Service Container in the `IServiceProvider` interface and a basic out-of-the-box implementation in `ServiceProvider`. 
+.NetCore defines the functionality of the Service Container in the `IServiceProvider` interface and a basic implementation that most developers use within the framework. 
 
 Many .NetCore application builders configure an `IServiceCollection` and build a `IServiceProvider` as part of the startup.  The `WebApplication` builder looks like this:
 
@@ -151,24 +151,32 @@ All the services are disposed when the DI container is disposed.
 
 ## Basic Service Provider Functionality
 
-`ServiceProvider` maintains three internal lists of service instances:
-1. A list of singleton Services it's maintaining.
-2. A list of transient services it has to dispose when the service provider is disposed.
+A `ServiceProvider` provides:
+
+1. Managed objects.  It creates and maintains a single instance of the object and provides references to that instance whwn requested.  It disposes managed objects when the contaner is disposed.  All managed objects are defined in the *Service Collection*.
+
+2. Unmanaged objects.  It creates new instances of unmanaged objects when requested.  It only retains references to objects that implement `IDisposable` or `IAsyncDisposable`, and only disposes these when the container is disposed.
+
+3. A Scoped Service Provider. It creates a child Service provider.
+
+Internally `ServiceProvider` maintains three lists:
+1. A list of managed Services it's maintaining.
+2. A list of transient unmanaged services it has to dispose when the service provider is disposed.
 3. A list of scoped Service Providers.
 
-There's no *Scoped* list.
+At this point it's important to understasnd there's no *Scoped* list.
 
-So in the root container there's only *Singleton* and *Transient* services.  All *Scoped* serv ices are maintained in the same list as *Singletons*.
+The root container only contains *Singleton* and *Transient* services.  All *Scoped* services are maintained in the same list as *Singletons*.
 
-It's only when when you create a *IServiceScope* from `IServiceProvider.CreateScope()` and get it's `IServiceProvider` that *Scoped* has any meaning.
+It's only when when you create a *IServiceScope* from `IServiceProvider.CreateScope()` and get it's `IServiceProvider` that *Scoped* has any meaning. *Scoped* Services are singleton services in the `IServiceProvider` provided by a `IServiceScope`.
 
-When we use this `IServiceProvider` it creates and resolves *Scoped* services from it's own singleton list, and resolves *Singleton* services from it's parent's root `IServiceProvider`.
+Any `IServiceProvider` provided by a `IServiceScope` creates and resolves *Scoped* services from it's own managed list, and resolves *Singleton* services from it's parent's root `IServiceProvider`.
 
 You can have a *IServiceScope* within a *IServiceScope* within a root provider.  *Scoped* services will be resolved from the lowest *IServiceScope*, *Singleton* services will be resolved from the root provider.
 
 ## Root Service Provider
 
-When we created the `IServiceProvider` above, we created a root service provider.  Within this container, *Singleton* and *Scoped* services have the same scope: the lifetime of the container.
+In the console application above we created the `IServiceProvider` as the root service provider.  Within this container, *Singleton* and *Scoped* services have the same scope: the lifetime of the container.
 
 To use scoped services properly, we need to create a `Scoped` container.
 
@@ -264,14 +272,14 @@ The important difference is `GetRequiredService` throws an exception if the serv
 
 There are use cases where a service is optional.  A Toast service is used if one is registered, but it's not critical to the application.
 
-There is a case to bwe made that using manual injection is a *Service Locator Pattern* and thus an *anti-pattern*.
+Many make the case that manual injection is a *Service Locator Pattern* and thus an *anti-pattern*.
 
 The principle arguments are that:
 1. It hides the service dependancies.
 2. It moves exceptions from compile-time to run-time.
 3. It makes testing more difficult.
 
-1 and 2 are true, but they're not show stoppers.  Don't be blinded by the *anit-pattern* label.  Understand what you're doing and the reasons you're doing it.  
+I agree in general with the points made.  But, don't be blinded by the *anit-pattern* and *codee smell* label.  Understand what you're doing and the reasons you're doing it.  
 
 Consider this service:
 
@@ -322,7 +330,7 @@ public class GoodService
 }
 ```
 
-The service acquisition occurs in the constructor.  There's nothing wrong with this pattern.
+The service acquisition occurs in the constructor.  There's nothing basically wrong with this pattern other than it hides the dependancy.
 
 ### Blazor Component Injection
 
@@ -353,7 +361,9 @@ There are two key points to note:
 
 There are use cases where you need to instantiate an object with DI services.
 
-The classic case is a disposable transient service.  If you simply get the service from the Service Provider you create a memory leak.  The solution is to use `ActivatorServices`.
+The classic case is a disposable transient service.  If you simply get the service 
+
+from the Service Provider you create a memory leak.  The solution is to use `ActivatorServices`.
 
 This example shows how to use what would be a disposable transient service in a scoped service.
 
