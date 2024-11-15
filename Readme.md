@@ -301,37 +301,6 @@ public class BadService
 
 This highlights the *Service Locator* problem.  The service acquisition is now buried down in the code.  The exception is only raised when the method is called.  This is **BAD PRACTICE**.
 
-On the other hand, consider this service:
-
-```csharp
-public class GoodService
-{
-    private readonly IServiceProvider _serviceProvider;
-    private readonly DisposableScopedService? _scopedService;
-
-    public GoodService(IServiceProvider serviceProvider)
-    {
-        _serviceProvider = serviceProvider;
-        _scopedService = _serviceProvider.GetService<DisposableScopedService>();
-
-        if (_scopedService is not null)
-        {
-            // Do some service registration
-        }
-    }
-
-    public void DoSomething()
-    {
-        if (_scopedService is not null)
-        {
-            // Do something with service
-        }
-    }
-}
-```
-
-The service acquisition occurs in the constructor.  There's nothing basically wrong with this pattern other than it hides the dependancy.
-
 ### Blazor Component Injection
 
 Consider a Blazor component.  Services are injected using the [Inject] attribute like this:
@@ -355,17 +324,17 @@ The Blazor Hub Sesssion [whether running on the Server or the Web Browser] has a
 
 There are two key points to note:
 1. The hub session provides the scoped ServiceProvider and disposes it when the hub session goes out-of-scope.
-2. Injection is an implementation of the *Service Locator Pattern* anti-pattern.
+2. Injection is an implementation of the *Service Locator Pattern*.
 
 ## Instantiating Objects with Service Dependancies
 
-There are use cases where you need to instantiate an object with DI services.
+There are use cases where you need to instantiate an object within the DI context [with DI services] but manage the object outside DI.
 
-The classic case is a disposable transient service.  If you simply get the service 
+The most common usage of this pattern is a disposable transient service.  If you simply get the service from the Service Provider you create a memory leak.  The DI container maintains a reference to each object it creates and only runs dispose whwn the container is disposed.
 
-from the Service Provider you create a memory leak.  The solution is to use `ActivatorServices`.
+The solution is to use `ActivatorUtilities`.
 
-This example shows how to use what would be a disposable transient service in a scoped service.
+This example shows how to use it to create the service instance.
 
 ```csharp
 public class MyService
@@ -387,6 +356,10 @@ public class MyService
     }
 }
 ```
+
+You are now responsible for disposing the object.
+
+## Factory Services
 
 Consider this object:
 
@@ -423,3 +396,46 @@ public class MyAService
 }
 ```
 
+This is simplistic.  You would normally need to call an async method to get the record.
+
+The `MyNonService` now has an `internal` constructor, so only a factory in the same assembly can create it.
+
+```csharp
+public class MyNonService
+{
+    private readonly DisposableScopedService _service;
+
+    public DataRecord Item { get; private set;}
+
+    internal MyNonService(DisposableScopedService service)
+    { 
+        _service = service;
+    }
+
+    public async ValueTask GetItemASync(Guid id)
+    { 
+        this.Item = await ......
+    }
+}
+```
+
+We can now build a *factory* service that gets a fully populated `MyNonService`.
+
+```csharp
+public class MyAService
+{
+    private readonly IServiceProvider _serviceProvider;
+
+    public MyAService(IServiceProvider serviceProvider)
+        => _serviceProvider = serviceProvider;
+
+    public async ValueTask<MyNonService> GetNonSeviceAsync(Guid id)
+    {
+        var myObject = ActivatorUtilities.CreateInstance<MyNonService>(_serviceProvider);
+        await MyObject.GetItemAsync(id);
+
+        return MyObject;
+
+    }
+}
+```
